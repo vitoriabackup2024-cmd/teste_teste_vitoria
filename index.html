@@ -774,13 +774,18 @@ async function pushEntry(entry) {
 // ══════════════════════════════════════════
 function parseData(str) {
   if (!str) return null;
-  // Tenta yyyy-MM-dd direto
-  if (/^\d{4}-\d{2}-\d{2}/.test(str)) return new Date(str + 'T00:00:00');
-  // Tenta DD/MM/YYYY (formato brasileiro do Sheets)
-  const br = str.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
-  if (br) return new Date(parseInt(br[3]), parseInt(br[2])-1, parseInt(br[1]));
-  // Fallback
-  return new Date(str);
+  // yyyy-MM-dd
+  if (typeof str === 'string' && str.match(/^\d{4}-\d{2}-\d{2}/)) {
+    return new Date(str.slice(0,10) + 'T12:00:00');
+  }
+  // DD/MM/YYYY
+  if (typeof str === 'string') {
+    const br = str.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+    if (br) return new Date(parseInt(br[3]), parseInt(br[2])-1, parseInt(br[1]), 12, 0, 0);
+  }
+  // "Thu Jun 25 2026 ..." — extrai ano/mês/dia pelo Date nativo
+  const d = new Date(str);
+  return isNaN(d) ? null : d;
 }
 
 function getFilteredData() {

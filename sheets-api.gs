@@ -54,8 +54,8 @@ function getLancamentos() {
   if (data.length <= 1) return [];
   return data.slice(1).map(row => ({
     data:  row[0] instanceof Date
-           ? Utilities.formatDate(row[0], Session.getScriptTimeZone(), 'yyyy-MM-dd')
-           : String(row[0]),
+           ? Utilities.formatDate(row[0], 'America/Sao_Paulo', 'yyyy-MM-dd')
+           : String(row[0]).slice(0, 10),
     tipo:  row[1],
     cat:   row[2],
     valor: parseFloat(row[3]) || 0,
