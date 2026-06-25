@@ -590,7 +590,8 @@ input::placeholder { color: var(--text3); }
 
     <div style="display:flex;flex-direction:column;gap:0.5rem;">
       <button class="btn-primary" onclick="saveMetas()">Salvar metas</button>
-      <button class="btn-secondary" style="width:100%;" onclick="clearDataAndReset()">Reconfigurar app</button>
+      <button class="btn-secondary" style="width:100%;" onclick="showDebug()">Ver diagnóstico</button>
+    <button class="btn-secondary" style="width:100%;margin-top:0.4rem;" onclick="clearDataAndReset()">Reconfigurar app</button>
     </div>
 
     <button class="btn-cancel" style="width:100%;padding:0.8rem;margin-top:0.75rem;" onclick="closeModal('settingsModal')">Fechar</button>
@@ -704,23 +705,31 @@ function getDemoData() {
 async function fetchData() {
   if (CFG.url === 'DEMO') return;
   try {
+    showToast('Buscando dados...');
     const r    = await fetch(CFG.url + '?action=getAll', { redirect: 'follow', cache: 'no-store' });
     const text = await r.text();
-    if (text.trim().startsWith('<')) throw new Error('redirect_html');
+    // Guarda raw para debug
+    localStorage.setItem('financa_debug', text.slice(0, 300));
+    if (text.trim().startsWith('<')) throw new Error('redirect_html — Google redirecionou');
     const d = JSON.parse(text);
     if (d && Array.isArray(d.lancamentos)) {
       DATA.lancamentos = d.lancamentos;
       DATA.poupancas   = d.poupancas || { viagem:0, reserva:0, chacara:0 };
       const localMetas = localStorage.getItem('financa_metas');
       DATA.metas = localMetas ? JSON.parse(localMetas) : (d.metas || { viagem:3500, reserva:0, chacara:0 });
-      // Salva cache local para próxima abertura
       localStorage.setItem('financa_cache', JSON.stringify({
         lancamentos: DATA.lancamentos,
         poupancas:   DATA.poupancas
       }));
+      showToast('✓ ' + DATA.lancamentos.length + ' lançamentos carregados');
+    } else {
+      showToast('⚠ Resposta inesperada da planilha');
+      localStorage.setItem('financa_debug', 'parsed ok mas sem lancamentos: ' + JSON.stringify(d).slice(0,200));
     }
     renderAll();
   } catch(e) {
+    localStorage.setItem('financa_debug', 'ERRO: ' + e.message);
+    showToast('Erro: ' + e.message.slice(0, 60));
     renderAll();
   }
 }
@@ -1186,6 +1195,11 @@ function updateMonthLabel() {
 // ══════════════════════════════════════════
 // BOOT
 // ══════════════════════════════════════════
+function showDebug() {
+  const d = localStorage.getItem('financa_debug') || '(sem dados de debug ainda)';
+  alert('DEBUG:\n' + d);
+}
+
 window.addEventListener('DOMContentLoaded', () => {
   const saved = localStorage.getItem('financa_cfg');
   if (saved) {
