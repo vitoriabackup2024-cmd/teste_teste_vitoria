@@ -704,12 +704,12 @@ function getDemoData() {
 async function fetchData() {
   if (CFG.url === 'DEMO') return;
   try {
-    const r = await fetch(`${CFG.url}?action=getAll`);
+    const r = await fetch(`${CFG.url}?action=getAll`, { redirect: 'follow' });
     const d = await r.json();
-    DATA = d;
+    if (d.lancamentos) DATA = d;
     renderAll();
   } catch(e) {
-    showToast('Erro ao buscar dados. Verifique a conexão.');
+    showToast('Erro ao buscar dados.');
     DATA = getDemoData();
     renderAll();
   }
@@ -722,12 +722,21 @@ async function pushEntry(entry) {
     renderAll(); showToast('Lançamento salvo ✓'); return;
   }
   try {
-    await fetch(CFG.url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'addEntry', data: entry })
+    const params = new URLSearchParams({
+      action: 'addEntry',
+      data:   entry.data,
+      tipo:   entry.tipo,
+      cat:    entry.cat  || '',
+      valor:  entry.valor,
+      desc:   entry.desc || ''
     });
-    await fetchData();
+    const r = await fetch(`${CFG.url}?${params}`, { redirect: 'follow' });
+    const d = await r.json();
+    if (d.error) throw new Error(d.error);
+    // Atualiza local imediatamente
+    DATA.lancamentos.push(entry);
+    if (entry.tipo === 'poupanca') DATA.poupancas[entry.cat] = (DATA.poupancas[entry.cat] || 0) + entry.valor;
+    renderAll();
     showToast('Lançamento salvo ✓');
   } catch(e) {
     showToast('Erro ao salvar. Tente novamente.');
