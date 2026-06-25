@@ -53,9 +53,17 @@ function getLancamentos() {
   const data = sheet.getDataRange().getValues();
   if (data.length <= 1) return [];
   return data.slice(1).map(row => ({
-    data:  row[0] instanceof Date
-           ? Utilities.formatDate(row[0], 'America/Sao_Paulo', 'yyyy-MM-dd')
-           : String(row[0]).slice(0, 10),
+    data:  (function(v) {
+             if (v instanceof Date) return Utilities.formatDate(v, 'America/Sao_Paulo', 'yyyy-MM-dd');
+             var s = String(v);
+             // "Thu Jun 25 2026 ..." → extrai com regex
+             var m = s.match(/(\w{3}) (\d{1,2}) (\d{4})/);
+             if (m) {
+               var months = {Jan:'01',Feb:'02',Mar:'03',Apr:'04',May:'05',Jun:'06',Jul:'07',Aug:'08',Sep:'09',Oct:'10',Nov:'11',Dec:'12'};
+               return m[3] + '-' + months[m[1]] + '-' + ('0'+m[2]).slice(-2);
+             }
+             return s.slice(0,10);
+           })(row[0]),
     tipo:  row[1],
     cat:   row[2],
     valor: parseFloat(row[3]) || 0,
