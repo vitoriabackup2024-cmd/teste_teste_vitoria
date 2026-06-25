@@ -704,13 +704,23 @@ function getDemoData() {
 async function fetchData() {
   if (CFG.url === 'DEMO') return;
   try {
-    const r = await fetch(`${CFG.url}?action=getAll`, { redirect: 'follow' });
-    const d = await r.json();
-    if (d.lancamentos) DATA = d;
+    const r    = await fetch(CFG.url + '?action=getAll', { redirect: 'follow', cache: 'no-store' });
+    const text = await r.text();
+    if (text.trim().startsWith('<')) throw new Error('redirect_html');
+    const d = JSON.parse(text);
+    if (d && Array.isArray(d.lancamentos)) {
+      DATA.lancamentos = d.lancamentos;
+      DATA.poupancas   = d.poupancas || { viagem:0, reserva:0, chacara:0 };
+      const localMetas = localStorage.getItem('financa_metas');
+      DATA.metas = localMetas ? JSON.parse(localMetas) : (d.metas || { viagem:3500, reserva:0, chacara:0 });
+      // Salva cache local para próxima abertura
+      localStorage.setItem('financa_cache', JSON.stringify({
+        lancamentos: DATA.lancamentos,
+        poupancas:   DATA.poupancas
+      }));
+    }
     renderAll();
   } catch(e) {
-    showToast('Erro ao buscar dados.');
-    DATA = getDemoData();
     renderAll();
   }
 }
@@ -736,6 +746,10 @@ async function pushEntry(entry) {
     // Atualiza local imediatamente
     DATA.lancamentos.push(entry);
     if (entry.tipo === 'poupanca') DATA.poupancas[entry.cat] = (DATA.poupancas[entry.cat] || 0) + entry.valor;
+    localStorage.setItem('financa_cache', JSON.stringify({
+      lancamentos: DATA.lancamentos,
+      poupancas:   DATA.poupancas
+    }));
     renderAll();
     showToast('Lançamento salvo ✓');
   } catch(e) {
@@ -1178,6 +1192,15 @@ window.addEventListener('DOMContentLoaded', () => {
     CFG = JSON.parse(saved);
     const metas = localStorage.getItem('financa_metas');
     if (metas) DATA.metas = JSON.parse(metas);
+    // Carregar cache local enquanto busca da planilha
+    const cache = localStorage.getItem('financa_cache');
+    if (cache) {
+      try {
+        const c = JSON.parse(cache);
+        DATA.lancamentos = c.lancamentos || [];
+        DATA.poupancas   = c.poupancas   || { viagem:0, reserva:0, chacara:0 };
+      } catch(e) {}
+    }
     initApp();
   }
   // Fechar modal clicando fora
